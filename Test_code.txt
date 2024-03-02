@@ -1,0 +1,162 @@
+clc
+clear all
+close all
+warning off;
+
+% Load the emotion classifier
+load Classifier;
+
+% Create a webcam object
+cam = webcam;
+
+% Create a cascade object detector for face detection
+faceDetector = vision.CascadeObjectDetector;
+
+% Initialize variables for storing detected emotions and song paths
+detectedEmotion = 'Unknown';
+
+disp('Press q to quit');
+
+% Main loop
+while true
+    % Capture a frame from the webcam
+    frame = snapshot(cam);
+    
+    % Detect faces in the frame
+    bboxes = step(faceDetector, frame);
+    
+    % If a face is detected
+    if ~isempty(bboxes)
+        % Crop the face region
+        face = imcrop(frame, bboxes(1, :));
+        face = imresize(face, [128 128]);
+        face = rgb2gray(face);
+        
+        % Extract features from the face
+        features = extractLBPFeatures(face);
+        
+        % Predict the emotion using the classifier
+        predictedClass = predict(Classifier, features);
+        
+        % Convert the predicted class to a string
+        detectedEmotion = char(predictedClass);
+        
+        % Display the frame with the detected emotion
+        imshow(frame);
+        title(['Detected Emotion: ' detectedEmotion]);
+        
+        % Turn off the camera
+        clear cam;
+        
+        % Break out of the loop
+        break;
+    else
+        imshow(frame);
+        title('No Face Detected');
+    end
+    
+    % Check if the user pressed 'q' to quit
+    if any(strcmpi(get(gcf,'currentcharacter'),'q'))
+        disp('Quitting...');
+        break;
+    end
+    
+    pause(0.1);
+end
+
+% Load song paths based on the detected emotion
+switch detectedEmotion
+    case 'happy'
+        songPaths = {
+            'song1 path','song2 path','song3 path','song4 path','song5 path'
+        };
+    case 'sad'
+        songPaths = {
+            'song1 path','song2 path','song3 path','song4 path','song5 path'
+        };
+    case 'neutral'
+        songPaths = {
+            'song1 path','song2 path','song3 path','song4 path','song5 path'
+        };
+    case 'angry'
+        songPaths = {
+            'song1 path','song2 path','song3 path','song4 path','song5 path'
+        };
+end
+
+% Open the song selection GUI
+openSongSelectionGUI(songPaths);
+
+% Close the webcam object
+clear cam;
+
+% Function to open the song selection GUI
+function openSongSelectionGUI(songPaths)
+    % Create the GUI figure
+    fig = uifigure('Name', 'Song Player');
+    fig.Position(3:4) = [240 300]; % Set figure width and height
+    fig.CloseRequestFcn = @(src, event) closeFigCallback(src);
+    
+    % Create the text label at the center top
+    txt = uilabel(fig);
+    txt.Text = 'Select a song';
+    txt.FontSize = 14;
+    txt.Position = [40 270 150 20];
+    
+    % Create buttons for each song
+    for i = 1:numel(songPaths)
+        btn = uibutton(fig, 'push', 'Text', extractSongName(songPaths{i}));
+        btn.Position = [50 210-(i-1)*40 150 30];
+        btn.ButtonPushedFcn = @(btn,event) playSong(songPaths{i});
+    end
+
+    % Callback function for closing the figure
+    function closeFigCallback(fig)
+        disp('Closing figure. Stopping audio playback...');
+        clear sound;
+        delete(fig);
+    end
+end
+
+% Function to extract the song name from the file path
+function songName = extractSongName(songPath)
+    [~, songName, ~] = fileparts(songPath);
+end
+
+
+% Function to play a song
+function playSong(songPath)
+    try
+        % Clear any currently playing sounds
+        clear sound;
+        
+        % Print debug message
+        disp(['Attempting to play song: ' songPath]);
+        
+        % Read the audio file
+        [audio, Fs] = audioread(songPath);
+        
+        % Print debug message
+        disp(['Read audio successfully. Fs: ' num2str(Fs)]);
+        
+        % Check if the audio is not empty
+        if ~isempty(audio)
+            % Print debug message
+            disp('Starting to play audio...');
+            
+            % Start audio playback
+            sound(audio, Fs);
+            
+            % Print debug message
+            disp('Audio playback started.');
+        else
+            % Print debug message
+            disp('Error: Empty audio file');
+        end
+        
+        % Display message
+        disp(['Playing song: ' songPath]);
+    catch
+        disp('Error playing the song');
+    end
+end
